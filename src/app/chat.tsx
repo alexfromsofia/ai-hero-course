@@ -30,7 +30,7 @@ export const ChatPage = () => {
 
     handleSubmit(e);
   };
-
+  console.dir(messages, { depth: null });
   return (
     <>
       <div className="flex h-screen min-h-0 flex-1 flex-col">
@@ -41,7 +41,12 @@ export const ChatPage = () => {
         >
           {messages.map((message, index) => {
             return (
-              <ChatMessage key={index} message={message} userName={userName} />
+              <ChatMessage
+                key={index}
+                parts={message.parts}
+                role={message.role}
+                userName={userName}
+              />
             );
           })}
         </div>

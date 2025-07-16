@@ -1,18 +1,51 @@
 import type { Message } from "ai";
 import { createDataStreamResponse, streamText } from "ai";
+import { between, eq } from "drizzle-orm";
 import { z } from "zod";
 import { model } from "~/models";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth/index.ts";
+import { db } from "~/server/db";
+import { requestLogs } from "~/server/db/schema";
 
 export const maxDuration = 60;
 export const maxSteps = 10;
+
+const REQUEST_LIMIT_PER_DAY = 100;
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
   }
+  const userId = session.user.id;
+
+  // Check if user is admin
+  const user = await db.query.users.findFirst({
+    where: (u, { eq }) => eq(u.id, userId),
+  });
+  const isAdmin = user?.isAdmin;
+
+  if (!isAdmin) {
+    // Count requests for today
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    const todayLogs = await db
+      .select()
+      .from(requestLogs)
+      .where(
+        eq(requestLogs.userId, userId) &&
+          between(requestLogs.requestedAt, startOfDay, endOfDay),
+      );
+    if (todayLogs.length >= REQUEST_LIMIT_PER_DAY) {
+      return new Response("Too Many Requests", { status: 429 });
+    }
+  }
+
+  await db.insert(requestLogs).values({ userId });
+
   const body = (await request.json()) as {
     messages: Array<Message>;
   };

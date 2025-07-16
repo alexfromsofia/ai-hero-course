@@ -97,6 +97,18 @@ function renderPart(part: MessagePart, index: number) {
         <ToolInvocation key={index} toolInvocation={part.toolInvocation} />
       );
     }
+    case "step-start":
+      return (
+        <div
+          key={index}
+          className="my-4 flex items-center gap-2 text-xs text-gray-500"
+          title={hoverHint}
+        >
+          <hr className="flex-1 border-t border-gray-700" />
+          <span className="px-2">Step Start</span>
+          <hr className="flex-1 border-t border-gray-700" />
+        </div>
+      );
     // Add more cases for other part types if needed
     default:
       return (

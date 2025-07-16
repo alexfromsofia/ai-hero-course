@@ -5,6 +5,7 @@ import { SignInModal } from "~/components/sign-in-modal";
 import { useChat, type Message } from "@ai-sdk/react";
 import { useAuth } from "~/components/auth-context";
 import { useState } from "react";
+import { ErrorMessage } from "~/components/error-message";
 
 const initialMessages: Message[] = [
   {
@@ -17,7 +18,7 @@ const initialMessages: Message[] = [
 export const ChatPage = () => {
   const { userName, isAuthenticated } = useAuth();
   const [showSignInModal, setShowSignInModal] = useState(false);
-  const { messages, input, handleInputChange, handleSubmit, isLoading } =
+  const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
     useChat({ initialMessages });
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -30,7 +31,11 @@ export const ChatPage = () => {
 
     handleSubmit(e);
   };
-  console.dir(messages, { depth: null });
+
+  if (error) {
+    return <ErrorMessage message={error.message} />;
+  }
+
   return (
     <>
       <div className="flex h-screen min-h-0 flex-1 flex-col">

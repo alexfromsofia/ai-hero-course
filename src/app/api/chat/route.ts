@@ -1,6 +1,6 @@
 import type { Message } from "ai";
-import { streamText, createDataStreamResponse } from "ai";
-import { date, z } from "zod";
+import { createDataStreamResponse, streamText } from "ai";
+import { z } from "zod";
 import { model } from "~/models";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth/index.ts";
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
             parameters: z.object({
               query: z.string().describe("The query to search the web for"),
             }),
-            execute: async ({ query }, { abortSignal }) => {
+            execute: async ({ query }: { query: string }, { abortSignal }) => {
               const results = await searchSerper(
                 { q: query, num: 10 },
                 abortSignal,

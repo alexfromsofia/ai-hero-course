@@ -6,7 +6,9 @@ export const redis = new Redis(env.REDIS_URL);
 const CACHE_EXPIRY_SECONDS = 60 * 60 * 6; // 6 hours
 const CACHE_KEY_SEPARATOR = ":";
 
-export const cacheWithRedis = <TFunc extends (...args: any[]) => Promise<any>>(
+export const cacheWithRedis = <
+  TFunc extends (...args: unknown[]) => Promise<unknown>,
+>(
   keyPrefix: string,
   fn: TFunc,
 ): TFunc => {
@@ -15,11 +17,11 @@ export const cacheWithRedis = <TFunc extends (...args: any[]) => Promise<any>>(
     const cachedResult = await redis.get(key);
     if (cachedResult) {
       console.log(`Cache hit for ${key}`);
-      return JSON.parse(cachedResult);
+      return JSON.parse(cachedResult) as Awaited<ReturnType<TFunc>>;
     }
 
     const result = await fn(...args);
     await redis.set(key, JSON.stringify(result), "EX", CACHE_EXPIRY_SECONDS);
-    return result;
+    return result as Awaited<ReturnType<TFunc>>;
   }) as TFunc;
 };

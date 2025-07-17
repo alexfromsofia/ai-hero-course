@@ -1,11 +1,16 @@
 import type { Message } from "ai";
-import { createDataStreamResponse, streamText } from "ai";
+import {
+  appendResponseMessages,
+  createDataStreamResponse,
+  streamText,
+} from "ai";
 import { between, eq } from "drizzle-orm";
 import { z } from "zod";
 import { model } from "~/models";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth/index.ts";
 import { db } from "~/server/db";
+import { upsertChat } from "~/server/db/chat-helpers";
 import { requestLogs } from "~/server/db/schema";
 
 export const maxDuration = 60;
@@ -48,25 +53,47 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     messages: Array<Message>;
+    chatId?: string;
   };
+
+  const { messages: requestMessages, chatId } = body;
+
+  // Create or get chat ID
+  let currentChatId = chatId;
+  if (!currentChatId) {
+    // Create new chat with user's message
+    currentChatId = crypto.randomUUID();
+    const title = requestMessages[0]?.content?.slice(0, 50) ?? "New Chat";
+
+    await upsertChat({
+      userId,
+      chatId: currentChatId,
+      title,
+      messages: requestMessages,
+    });
+  }
 
   return createDataStreamResponse({
     execute: async (dataStream) => {
-      const { messages } = body;
-
       const result = streamText({
         model,
-        messages,
+        messages: requestMessages,
         tools: {
           searchWeb: {
             parameters: z.object({
               query: z.string().describe("The query to search the web for"),
             }),
             execute: async ({ query }: { query: string }, { abortSignal }) => {
-              const results = await searchSerper(
+              const results = (await searchSerper(
                 { q: query, num: 10 },
                 abortSignal,
-              );
+              )) as {
+                organic: Array<{
+                  title: string;
+                  link: string;
+                  snippet: string;
+                }>;
+              };
 
               return results.organic.map((result) => ({
                 title: result.title,
@@ -85,6 +112,24 @@ export async function POST(request: Request) {
                 5. When providing information, always include the source where you found it.
 
                 Remember to use the searchWeb tool whenever you need to find current information.`,
+        onFinish: async ({ response }) => {
+          const responseMessages = response.messages;
+
+          const updatedMessages = appendResponseMessages({
+            messages: requestMessages,
+            responseMessages,
+          });
+
+          // Save the updated messages to the database
+          const title = updatedMessages[0]?.content?.slice(0, 50) ?? "New Chat";
+
+          await upsertChat({
+            userId,
+            chatId: currentChatId,
+            title,
+            messages: updatedMessages,
+          });
+        },
       });
 
       result.mergeIntoDataStream(dataStream);

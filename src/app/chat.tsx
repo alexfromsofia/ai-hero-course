@@ -114,6 +114,8 @@ export const ChatPage = ({
 
     if (lastDataItem && isNewChatCreated(lastDataItem)) {
       console.log("Redirecting to new chat:", lastDataItem.chatId);
+      // Dispatch custom event to notify sidebar to refresh
+      window.dispatchEvent(new CustomEvent("new-chat-created"));
       router.push(`/?id=${lastDataItem.chatId}`);
     }
   }, [data, router]);

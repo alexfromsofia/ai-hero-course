@@ -6,6 +6,8 @@ import {
 } from "ai";
 import { between, eq } from "drizzle-orm";
 import { z } from "zod";
+import { Langfuse } from "langfuse";
+import { env } from "~/env";
 import { model } from "~/models";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth/index.ts";
@@ -23,6 +25,11 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
   const userId = session.user.id;
+
+  // Initialize Langfuse client
+  const langfuse = new Langfuse({
+    environment: env.NODE_ENV,
+  });
 
   // Check if user is admin
   const user = await db.query.users.findFirst({
@@ -83,6 +90,13 @@ export async function POST(request: Request) {
     });
   }
 
+  // Create Langfuse trace
+  const trace = langfuse.trace({
+    sessionId: currentChatId,
+    name: "chat",
+    userId: session.user.id,
+  });
+
   return createDataStreamResponse({
     execute: async (dataStream) => {
       // Send the new chat ID if we created one
@@ -134,7 +148,13 @@ export async function POST(request: Request) {
                 5. When providing information, always include the source where you found it.
 
                 Remember to use the searchWeb tool whenever you need to find current information.`,
-        experimental_telemetry: { isEnabled: true },
+        experimental_telemetry: {
+          isEnabled: true,
+          functionId: `agent`,
+          metadata: {
+            langfuseTraceId: trace.id,
+          },
+        },
         onFinish: async ({ response }) => {
           const responseMessages = response.messages;
 
@@ -168,6 +188,9 @@ export async function POST(request: Request) {
             title,
             messages: updatedMessages,
           });
+
+          // Flush the trace to Langfuse
+          await langfuse.flushAsync();
         },
       });
 

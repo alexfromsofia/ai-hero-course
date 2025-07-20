@@ -4,6 +4,7 @@ import { useChat, type Message } from "@ai-sdk/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { StickToBottom } from "use-stick-to-bottom";
 import { ChatMessage } from "~/components/chat-message";
 import { ErrorMessage } from "~/components/error-message";
 import { SignInModal } from "~/components/sign-in-modal";
@@ -118,9 +119,13 @@ export const ChatPage = ({
   return (
     <>
       <div className="flex h-full flex-col">
-        {/* Scrollable chat area */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500">
-          <div
+        {/* Scrollable chat area with StickToBottom */}
+        <StickToBottom
+          className="flex-1 overflow-auto [&>div]:scrollbar-thin [&>div]:scrollbar-track-gray-800 [&>div]:scrollbar-thumb-gray-600 [&>div]:hover:scrollbar-thumb-gray-500"
+          resize="smooth"
+          initial="smooth"
+        >
+          <StickToBottom.Content
             className="mx-auto max-w-[65ch] p-4"
             role="log"
             aria-label="Chat messages"
@@ -137,8 +142,8 @@ export const ChatPage = ({
                   />
                 );
               })}
-          </div>
-        </div>
+          </StickToBottom.Content>
+        </StickToBottom>
 
         {/* Sticky input area */}
         <div className="sticky bottom-0 z-10 border-t border-gray-700 bg-gray-950">

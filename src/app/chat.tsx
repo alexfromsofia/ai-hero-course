@@ -117,25 +117,30 @@ export const ChatPage = ({
 
   return (
     <>
-      <div className="flex h-screen min-h-0 flex-1 flex-col">
-        <div
-          className="mx-auto w-full max-w-[65ch] flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500"
-          role="log"
-          aria-label="Chat messages"
-        >
-          {userName &&
-            isAuthenticated &&
-            messages.map((message, index) => {
-              return (
-                <ChatMessage
-                  key={index}
-                  parts={message.parts}
-                  role={message.role}
-                  userName={userName}
-                />
-              );
-            })}
+      <div className="flex h-full flex-col">
+        {/* Scrollable chat area */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500">
+          <div
+            className="mx-auto max-w-[65ch] p-4"
+            role="log"
+            aria-label="Chat messages"
+          >
+            {userName &&
+              isAuthenticated &&
+              messages.map((message, index) => {
+                return (
+                  <ChatMessage
+                    key={index}
+                    parts={message.parts}
+                    role={message.role}
+                    userName={userName}
+                  />
+                );
+              })}
+          </div>
         </div>
+
+        {/* Sticky input area */}
         <div className="sticky bottom-0 z-10 border-t border-gray-700 bg-gray-950">
           <form
             onSubmit={handleFormSubmit}

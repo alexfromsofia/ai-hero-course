@@ -62,7 +62,18 @@ export async function POST(request: Request) {
   const currentChatId = chatId;
   if (isNewChat) {
     // Create new chat with user's message
-    const title = requestMessages[0]?.content?.slice(0, 50) ?? "New Chat";
+    // Extract title from the first message's parts since content is empty
+    const firstMessage = requestMessages[0];
+    let title = "New Chat";
+
+    if (firstMessage?.parts && Array.isArray(firstMessage.parts)) {
+      const textPart = firstMessage.parts.find(
+        (part) => typeof part === "object" && part !== null && "text" in part,
+      );
+      if (textPart && typeof textPart === "object" && "text" in textPart) {
+        title = String(textPart.text).slice(0, 50);
+      }
+    }
 
     await upsertChat({
       userId,
@@ -132,7 +143,23 @@ export async function POST(request: Request) {
           });
 
           // Save the updated messages to the database
-          const title = updatedMessages[0]?.content?.slice(0, 50) ?? "New Chat";
+          // Extract title from the first message's parts since content is empty
+          const firstMessage = updatedMessages[0];
+          let title = "New Chat";
+
+          if (firstMessage?.parts && Array.isArray(firstMessage.parts)) {
+            const textPart = firstMessage.parts.find(
+              (part) =>
+                typeof part === "object" && part !== null && "text" in part,
+            );
+            if (
+              textPart &&
+              typeof textPart === "object" &&
+              "text" in textPart
+            ) {
+              title = String(textPart.text).slice(0, 50);
+            }
+          }
 
           await upsertChat({
             userId,

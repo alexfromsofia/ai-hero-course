@@ -42,11 +42,10 @@ export function ChatSidebar({
     };
   }, [queryClient]);
 
-  if (!chats) return <div className="p-4">No chats found.</div>;
-
   return (
     <div className="flex w-64 flex-col border-r border-gray-700 bg-gray-900">
-      <div className="p-4">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 border-b border-gray-700 bg-gray-900 p-4">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-400">Your Chats</h2>
           <button
@@ -56,24 +55,35 @@ export function ChatSidebar({
             <PlusIcon className="size-4" />
           </button>
         </div>
-        <div className="flex flex-col gap-2">
-          {chats.map((chat: Chat) => (
-            <div key={chat.id} className="flex items-center gap-2">
-              <Link
-                href={`/?id=${chat.id}`}
-                className={`flex-1 rounded-lg p-3 text-left text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                  chat.id === selectedChatId
-                    ? "bg-gray-700"
-                    : "hover:bg-gray-750 bg-gray-800"
-                }`}
-              >
-                {chat.title}
-              </Link>
-            </div>
-          ))}
-        </div>
       </div>
-      <div className="mt-auto p-4">
+
+      {/* Scrollable chats area */}
+      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500">
+        {chats.length === 0 ? (
+          <div className="text-sm text-gray-500">No chats found.</div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {chats.map((chat: Chat, index) => (
+              <div key={chat.id} className="flex items-center gap-2">
+                <Link
+                  href={`/?id=${chat.id}`}
+                  className={`flex-1 rounded-lg p-3 text-left text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    chat.id === selectedChatId
+                      ? "bg-gray-700"
+                      : "hover:bg-gray-750 bg-gray-800"
+                  }`}
+                >
+                  {/* TODO: generate chat titles */}
+                  {chat.title || `Chat ${index + 1}`}
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sticky auth button */}
+      <div className="sticky bottom-0 border-t border-gray-700 bg-gray-900 p-4">
         <AuthButton isAuthenticated={isAuthenticated} userImage={userImage} />
       </div>
     </div>

@@ -58,7 +58,7 @@ export default async function HomePage({
         chats={chats}
       />
 
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex flex-1 flex-col">
         <ChatPage
           key={chatId}
           userName={userName}

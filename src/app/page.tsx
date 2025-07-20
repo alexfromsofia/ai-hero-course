@@ -12,7 +12,11 @@ export default async function HomePage({
   const session = await auth();
   const userName = session?.user.name ?? "Guest";
   const isAuthenticated = !!session?.user;
-  const { id: chatId } = await searchParams;
+  const { id: chatIdFromUrl } = await searchParams;
+
+  // Generate a stable chatId - use the URL chatId if provided, otherwise generate a new one
+  const chatId = chatIdFromUrl ?? crypto.randomUUID();
+  const isNewChat = !chatIdFromUrl;
 
   // Fetch chats for sidebar (empty array if not authenticated)
   const chats = isAuthenticated
@@ -21,10 +25,10 @@ export default async function HomePage({
 
   // Fetch specific chat if chatId is provided and user is authenticated
   let initialMessages: Message[] = [];
-  if (chatId && isAuthenticated && session?.user?.id) {
+  if (chatIdFromUrl && isAuthenticated && session?.user?.id) {
     const chat = await getChat({
       userId: session.user.id,
-      chatId,
+      chatId: chatIdFromUrl,
     });
 
     if (chat?.messages) {
@@ -48,7 +52,7 @@ export default async function HomePage({
   return (
     <div className="flex h-screen bg-gray-950">
       <ChatSidebar
-        selectedChatId={chatId}
+        selectedChatId={chatIdFromUrl}
         isAuthenticated={isAuthenticated}
         userImage={session?.user.image}
         chats={chats}
@@ -56,9 +60,11 @@ export default async function HomePage({
 
       <div className="flex flex-1 items-center justify-center">
         <ChatPage
+          key={chatId}
           userName={userName}
           isAuthenticated={isAuthenticated}
           chatId={chatId}
+          isNewChat={isNewChat}
           initialMessages={initialMessages}
         />
       </div>

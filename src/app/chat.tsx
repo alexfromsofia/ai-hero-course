@@ -13,6 +13,7 @@ interface ChatPageProps {
   chatId: string;
   userName: string;
   isAuthenticated: boolean;
+  isNewChat: boolean;
   initialMessages: Message[];
 }
 
@@ -20,6 +21,7 @@ export const ChatPage = ({
   chatId,
   userName,
   isAuthenticated,
+  isNewChat,
   initialMessages,
 }: ChatPageProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
@@ -66,7 +68,7 @@ export const ChatPage = ({
     data,
   } = useChat({
     initialMessages,
-    body: { chatId },
+    body: { chatId, isNewChat },
     onFinish: (message) => {
       if (isAuthenticated) {
         // For new chats, the chatId will be created by the API

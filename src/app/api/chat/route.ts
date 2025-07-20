@@ -52,16 +52,16 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     messages: Array<Message>;
-    chatId?: string;
+    chatId: string;
+    isNewChat: boolean;
   };
 
-  const { messages: requestMessages, chatId } = body;
+  const { messages: requestMessages, chatId, isNewChat } = body;
 
   // Create or get chat ID
-  let currentChatId = chatId;
-  if (!currentChatId) {
+  const currentChatId = chatId;
+  if (isNewChat) {
     // Create new chat with user's message
-    currentChatId = crypto.randomUUID();
     const title = requestMessages[0]?.content?.slice(0, 50) ?? "New Chat";
 
     await upsertChat({
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   return createDataStreamResponse({
     execute: async (dataStream) => {
       // Send the new chat ID if we created one
-      if (!chatId) {
+      if (isNewChat) {
         console.log(
           "Sending NEW_CHAT_CREATED event with chatId:",
           currentChatId,

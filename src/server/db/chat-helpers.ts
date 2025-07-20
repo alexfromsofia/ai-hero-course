@@ -51,10 +51,16 @@ export const upsertChat = async (opts: {
 };
 
 // Get a chat by id with all its messages
-export const getChat = async (opts: { userId: string; chatId: string }) => {
+export const getChat = async (opts: {
+  userId: string | undefined;
+  chatId: string;
+}) => {
+  if (!opts.userId) {
+    return null;
+  }
+
   const chat = await db.query.chats.findFirst({
-    where: (c, { eq, and }) =>
-      and(eq(c.id, opts.chatId), eq(c.userId, opts.userId)),
+    where: (c, { eq }) => eq(c.id, opts.chatId),
     with: {
       messages: {
         orderBy: (m, { asc }) => asc(m.order),
@@ -64,10 +70,13 @@ export const getChat = async (opts: { userId: string; chatId: string }) => {
   return chat;
 };
 
-// Get all chats for a user (without messages)
-export const getChats = async (opts: { userId: string }) => {
+export const getChats = async (opts: { userId: string | undefined }) => {
+  if (!opts.userId) {
+    return [];
+  }
+
   return db.query.chats.findMany({
-    where: (c, { eq }) => eq(c.userId, opts.userId),
+    where: (c, { eq }) => (opts.userId ? eq(c.userId, opts.userId) : undefined),
     orderBy: (c, { desc }) => desc(c.updatedAt),
   });
 };

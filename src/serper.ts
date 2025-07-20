@@ -58,10 +58,11 @@ export declare namespace SerperTool {
 
 const fetchFromSerper = cacheWithRedis(
   "serper",
-  async (
-    url: string,
-    options: Omit<RequestInit, "headers"> & { signal: AbortSignal | undefined },
-  ): Promise<SerperTool.SearchResult> => {
+  async (...args: unknown[]): Promise<SerperTool.SearchResult> => {
+    const [url, options] = args as [
+      string,
+      Omit<RequestInit, "headers"> & { signal: AbortSignal | undefined },
+    ];
     if (!process.env.SERPER_API_KEY) {
       throw new Error("SERPER_API_KEY is not set in .env");
     }

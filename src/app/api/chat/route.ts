@@ -14,7 +14,6 @@ import { upsertChat } from "~/server/db/chat-helpers";
 import { requestLogs } from "~/server/db/schema";
 
 export const maxDuration = 60;
-export const maxSteps = 10;
 
 const REQUEST_LIMIT_PER_DAY = 100;
 
@@ -75,6 +74,18 @@ export async function POST(request: Request) {
 
   return createDataStreamResponse({
     execute: async (dataStream) => {
+      // Send the new chat ID if we created one
+      if (!chatId) {
+        console.log(
+          "Sending NEW_CHAT_CREATED event with chatId:",
+          currentChatId,
+        );
+        dataStream.writeData({
+          type: "NEW_CHAT_CREATED",
+          chatId: currentChatId,
+        });
+      }
+
       const result = streamText({
         model,
         messages: requestMessages,
@@ -103,7 +114,7 @@ export async function POST(request: Request) {
             },
           },
         },
-        maxSteps,
+        maxSteps: 10,
         system: `You are a helpful AI assistant with access to real-time web search.
                 1. Always search the web for up-to-date information when relevant.
                 2. Cite your sources using inline links [like this](url) and always format URLs as markdown links.

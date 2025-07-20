@@ -1,22 +1,29 @@
 "use client";
 
-import { ChatMessage } from "~/components/chat-message";
-import { SignInModal } from "~/components/sign-in-modal";
 import { useChat, type Message } from "@ai-sdk/react";
-import { useAuth } from "~/components/auth-context";
-import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ChatMessage } from "~/components/chat-message";
 import { ErrorMessage } from "~/components/error-message";
+import { SignInModal } from "~/components/sign-in-modal";
 import { useChat as useChatData } from "~/hooks/use-chats";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { isNewChatCreated } from "~/shared/types";
 
 interface ChatPageProps {
-  chatId: string | null;
+  chatId: string;
+  userName: string;
+  isAuthenticated: boolean;
 }
 
-export const ChatPage = ({ chatId }: ChatPageProps) => {
-  const { userName, isAuthenticated } = useAuth();
+export const ChatPage = ({
+  chatId,
+  userName,
+  isAuthenticated,
+}: ChatPageProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Load existing chat data if chatId is provided
   const { data: existingChat, isLoading: chatLoading } = useChatData(
@@ -53,32 +60,9 @@ export const ChatPage = ({ chatId }: ChatPageProps) => {
     },
   });
 
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    error,
-    setMessages,
-  } = useChat({
-    initialMessages: [],
-    onFinish: (message) => {
-      if (chatId && isAuthenticated) {
-        // Save the chat to the backend
-        const allMessages = [...messages, message];
-        const title = allMessages[0]?.content?.slice(0, 50) ?? "New Chat";
-
-        saveChatMutation.mutate({ chatId, title, messages: allMessages });
-      }
-    },
-  });
-
-  // Load existing messages when chat data is available
-  useEffect(() => {
-    if (existingChat?.messages && existingChat.messages.length > 0) {
-      // Convert database messages to AI SDK format
-      const aiMessages: Message[] = existingChat.messages.map((dbMessage) => ({
+  // Convert existing chat messages to AI SDK format
+  const initialMessages: Message[] = existingChat?.messages
+    ? existingChat.messages.map((dbMessage) => ({
         id: dbMessage.id,
         role: dbMessage.role as "user" | "assistant" | "system",
         content:
@@ -89,13 +73,50 @@ export const ChatPage = ({ chatId }: ChatPageProps) => {
             ? String((dbMessage.parts[0] as { text: unknown }).text)
             : "",
         parts: dbMessage.parts as Message["parts"],
-      }));
-      setMessages(aiMessages);
-    } else if (existingChat && existingChat.messages.length === 0) {
-      // Clear messages if chat exists but has no messages
-      setMessages([]);
+      }))
+    : [];
+
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    error,
+    data,
+  } = useChat({
+    initialMessages,
+    body: { chatId },
+    onFinish: (message) => {
+      if (isAuthenticated) {
+        // For new chats, the chatId will be created by the API
+        // For existing chats, use the current chatId
+        const currentChatId =
+          chatId ?? data?.find((item) => isNewChatCreated(item))?.chatId;
+        if (currentChatId) {
+          const allMessages = [...messages, message];
+          const title = allMessages[0]?.content?.slice(0, 50) ?? "New Chat";
+
+          saveChatMutation.mutate({
+            chatId: currentChatId,
+            title,
+            messages: allMessages,
+          });
+        }
+      }
+    },
+  });
+
+  // Listen for NEW_CHAT_CREATED events and redirect
+  useEffect(() => {
+    const lastDataItem = data?.[data.length - 1];
+    console.log("lastDataItem", lastDataItem);
+
+    if (lastDataItem && isNewChatCreated(lastDataItem)) {
+      console.log("Redirecting to new chat:", lastDataItem.chatId);
+      router.push(`/?id=${lastDataItem.chatId}`);
     }
-  }, [existingChat, setMessages]);
+  }, [data, router]);
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -126,16 +147,18 @@ export const ChatPage = ({ chatId }: ChatPageProps) => {
           role="log"
           aria-label="Chat messages"
         >
-          {messages.map((message, index) => {
-            return (
-              <ChatMessage
-                key={index}
-                parts={message.parts}
-                role={message.role}
-                userName={userName}
-              />
-            );
-          })}
+          {userName &&
+            isAuthenticated &&
+            messages.map((message, index) => {
+              return (
+                <ChatMessage
+                  key={index}
+                  parts={message.parts}
+                  role={message.role}
+                  userName={userName}
+                />
+              );
+            })}
         </div>
         <div className="sticky bottom-0 z-10 border-t border-gray-700 bg-gray-950">
           <form

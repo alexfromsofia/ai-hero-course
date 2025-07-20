@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { PlusIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useChats } from "~/hooks/use-chats";
 import { AuthButton } from "./auth-button";
 import type { Chat } from "~/shared/types";
 
@@ -13,12 +12,13 @@ export function ChatSidebar({
   selectedChatId,
   isAuthenticated,
   userImage,
+  chats,
 }: {
   selectedChatId?: string;
   isAuthenticated: boolean;
   userImage?: string | null;
+  chats: Chat[];
 }) {
-  const { data: chats, isLoading } = useChats();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -42,18 +42,15 @@ export function ChatSidebar({
     };
   }, [queryClient]);
 
-  if (isLoading) return <div className="p-4">Loading chats...</div>;
   if (!chats) return <div className="p-4">No chats found.</div>;
 
   return (
     <div className="flex w-64 flex-col border-r border-gray-700 bg-gray-900">
       <div className="p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="mb-2 text-sm font-semibold text-gray-400">
-            Your Chats
-          </h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-400">Your Chats</h2>
           <button
-            className="text-sm text-gray-400 hover:text-gray-300"
+            className="rounded-lg bg-gray-700 p-2 text-left text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
             onClick={handleNewChat}
           >
             <PlusIcon className="size-4" />

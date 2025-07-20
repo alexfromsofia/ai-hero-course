@@ -7,28 +7,24 @@ import { useEffect, useState } from "react";
 import { ChatMessage } from "~/components/chat-message";
 import { ErrorMessage } from "~/components/error-message";
 import { SignInModal } from "~/components/sign-in-modal";
-import { useChat as useChatData } from "~/hooks/use-chats";
 import { isNewChatCreated } from "~/shared/types";
 
 interface ChatPageProps {
   chatId: string;
   userName: string;
   isAuthenticated: boolean;
+  initialMessages: Message[];
 }
 
 export const ChatPage = ({
   chatId,
   userName,
   isAuthenticated,
+  initialMessages,
 }: ChatPageProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
-
-  // Load existing chat data if chatId is provided
-  const { data: existingChat, isLoading: chatLoading } = useChatData(
-    chatId ?? undefined,
-  );
 
   // Mutation for saving chats
   const saveChatMutation = useMutation({
@@ -59,22 +55,6 @@ export const ChatPage = ({
       console.error("Failed to save chat:", error);
     },
   });
-
-  // Convert existing chat messages to AI SDK format
-  const initialMessages: Message[] = existingChat?.messages
-    ? existingChat.messages.map((dbMessage) => ({
-        id: dbMessage.id,
-        role: dbMessage.role as "user" | "assistant" | "system",
-        content:
-          Array.isArray(dbMessage.parts) &&
-          dbMessage.parts[0] &&
-          typeof dbMessage.parts[0] === "object" &&
-          "text" in dbMessage.parts[0]
-            ? String((dbMessage.parts[0] as { text: unknown }).text)
-            : "",
-        parts: dbMessage.parts as Message["parts"],
-      }))
-    : [];
 
   const {
     messages,
@@ -131,14 +111,6 @@ export const ChatPage = ({
 
   if (error) {
     return <ErrorMessage message={error.message} />;
-  }
-
-  if (chatLoading) {
-    return (
-      <div className="flex h-screen min-h-0 flex-1 items-center justify-center">
-        <div className="text-gray-300">Loading chat...</div>
-      </div>
-    );
   }
 
   return (

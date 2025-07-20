@@ -52,6 +52,11 @@ GOOGLE_GENERATIVE_AI_API_KEY="your-google-ai-key"
 # Search
 SERPER_API_KEY="your-serper-api-key"
 
+# Langfuse
+LANGFUSE_SECRET_KEY="your-langfuse-secret-key"
+LANGFUSE_PUBLIC_KEY="your-langfuse-public-key"
+LANGFUSE_BASEURL="https://cloud.langfuse.com"
+
 # Environment
 NODE_ENV="development"
 ```

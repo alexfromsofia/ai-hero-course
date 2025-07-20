@@ -134,6 +134,7 @@ export async function POST(request: Request) {
                 5. When providing information, always include the source where you found it.
 
                 Remember to use the searchWeb tool whenever you need to find current information.`,
+        experimental_telemetry: { isEnabled: true },
         onFinish: async ({ response }) => {
           const responseMessages = response.messages;
 

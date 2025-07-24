@@ -32,11 +32,24 @@ export async function POST(request: Request) {
     environment: env.NODE_ENV,
   });
 
+  // Create Langfuse trace (will update sessionId later)
+  const trace = langfuse.trace({
+    name: "chat",
+    userId: session.user.id,
+  });
+
   // Check if user is admin
+  const userLookupSpan = trace.span({
+    name: "user-admin-check",
+    input: { userId },
+  });
   const user = await db.query.users.findFirst({
     where: (u, { eq }) => eq(u.id, userId),
   });
   const isAdmin = user?.isAdmin;
+  userLookupSpan.end({
+    output: { isAdmin, userFound: !!user },
+  });
 
   if (!isAdmin) {
     // Count requests for today
@@ -44,6 +57,11 @@ export async function POST(request: Request) {
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
+
+    const requestCountSpan = trace.span({
+      name: "check-daily-request-limit",
+      input: { userId, startOfDay, endOfDay, limit: REQUEST_LIMIT_PER_DAY },
+    });
     const todayLogs = await db
       .select()
       .from(requestLogs)
@@ -51,12 +69,26 @@ export async function POST(request: Request) {
         eq(requestLogs.userId, userId) &&
           between(requestLogs.requestedAt, startOfDay, endOfDay),
       );
+    requestCountSpan.end({
+      output: {
+        requestCount: todayLogs.length,
+        limitExceeded: todayLogs.length >= REQUEST_LIMIT_PER_DAY,
+      },
+    });
+
     if (todayLogs.length >= REQUEST_LIMIT_PER_DAY) {
       return new Response("Too Many Requests", { status: 429 });
     }
   }
 
+  const logRequestSpan = trace.span({
+    name: "log-request",
+    input: { userId },
+  });
   await db.insert(requestLogs).values({ userId });
+  logRequestSpan.end({
+    output: { success: true },
+  });
 
   const body = (await request.json()) as {
     messages: Array<Message>;
@@ -83,19 +115,29 @@ export async function POST(request: Request) {
       }
     }
 
+    const createChatSpan = trace.span({
+      name: "create-new-chat",
+      input: {
+        userId,
+        chatId: currentChatId,
+        title,
+        messageCount: requestMessages.length,
+      },
+    });
     await upsertChat({
       userId,
       chatId: currentChatId,
       title,
       messages: requestMessages,
     });
+    createChatSpan.end({
+      output: { success: true, chatCreated: true },
+    });
   }
 
-  // Create Langfuse trace
-  const trace = langfuse.trace({
+  // Update trace with sessionId now that we have chatId
+  trace.update({
     sessionId: currentChatId,
-    name: "chat",
-    userId: session.user.id,
   });
 
   return createDataStreamResponse({
@@ -243,11 +285,23 @@ export async function POST(request: Request) {
             }
           }
 
+          const saveChatSpan = trace.span({
+            name: "save-chat-with-response",
+            input: {
+              userId,
+              chatId: currentChatId,
+              title,
+              messageCount: updatedMessages.length,
+            },
+          });
           await upsertChat({
             userId,
             chatId: currentChatId,
             title,
             messages: updatedMessages,
+          });
+          saveChatSpan.end({
+            output: { success: true, chatUpdated: true },
           });
 
           // Flush the trace to Langfuse

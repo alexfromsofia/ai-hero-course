@@ -8,10 +8,23 @@ import { auth } from "~/server/auth/index.ts";
 import { db } from "~/server/db";
 import { upsertChat } from "~/server/db/chat-helpers";
 import { requestLogs } from "~/server/db/schema";
+import {
+  checkRateLimit,
+  recordRateLimit,
+  type RateLimitConfig,
+} from "~/server/rate-limit";
 
 export const maxDuration = 60;
 
 const REQUEST_LIMIT_PER_DAY = 100;
+
+// Global LLM rate limit configuration - for testing: 1 request per 5 seconds
+const LLM_RATE_LIMIT_CONFIG: RateLimitConfig = {
+  maxRequests: 1,
+  maxRetries: 3,
+  windowMs: 5000, // 5 seconds
+  keyPrefix: "global_llm",
+};
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -146,6 +159,40 @@ export async function POST(request: Request) {
           chatId: currentChatId,
         });
       }
+
+      // Check global LLM rate limit before making the request
+      const rateLimitSpan = trace.span({
+        name: "check-global-llm-rate-limit",
+        input: { config: LLM_RATE_LIMIT_CONFIG },
+      });
+
+      const rateLimitCheck = await checkRateLimit(LLM_RATE_LIMIT_CONFIG);
+
+      if (!rateLimitCheck.allowed) {
+        console.log("Global LLM rate limit exceeded, waiting for reset...");
+        const isAllowed = await rateLimitCheck.retry();
+
+        if (!isAllowed) {
+          rateLimitSpan.end({
+            output: { allowed: false, maxRetriesExceeded: true },
+          });
+          throw new Error(
+            "Global LLM rate limit exceeded after maximum retries",
+          );
+        }
+      }
+
+      // Record the request
+      await recordRateLimit(LLM_RATE_LIMIT_CONFIG);
+
+      rateLimitSpan.end({
+        output: {
+          allowed: true,
+          remaining: rateLimitCheck.remaining,
+          totalHits: rateLimitCheck.totalHits,
+          resetTime: rateLimitCheck.resetTime,
+        },
+      });
 
       const result = streamFromDeepSearch({
         messages: requestMessages,
